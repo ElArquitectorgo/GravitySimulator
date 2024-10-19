@@ -11,7 +11,7 @@
 #define G 0.01f
 #define M 1
 #define R 5
-#define RESTITUTION 0.6f
+#define RESTITUTION 0.2f
 
 typedef struct {
     float x, y;
@@ -27,10 +27,10 @@ Particle* particles = NULL;
 int num_particles = 100;
 
 void render_particles(SDL_Renderer* renderer, float zoom) {
-    SDL_SetRenderDrawColor(renderer, 0xff, 0xff, 0xff, 255);
-
     for (int i = 0; i < num_particles; i++) {
         SDL_Rect rect = { (int)particles[i].pos.x * zoom, (int)particles[i].pos.y * zoom, R * zoom, R * zoom };
+
+        SDL_SetRenderDrawColor(renderer, particles[i].heat * 5, (1 - particles[i].heat) * 5, 0xff, 255);
         SDL_RenderFillRect(renderer, &rect);
     }
 }
@@ -269,7 +269,7 @@ int main() {
         }
 
         //RENDER LOOP END
-        SDL_SetRenderDrawColor(renderer, 0x11, 0x11, 0x11, 255);
+        SDL_SetRenderDrawColor(renderer, 20, 20, 20, 255);
         SDL_RenderPresent(renderer);
     }
 
