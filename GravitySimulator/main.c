@@ -3,7 +3,8 @@
 #include <stdlib.h>
 #include <SDL.h>
 #include <SDL_thread.h>
-#include <SDL_image.h>
+
+#include "vector2.h"
 
 #define WINDOW_WIDTH 800
 #define WINDOW_HEIGHT 800
@@ -14,21 +15,22 @@
 #define RESTITUTION 0.2f
 
 typedef struct {
-    float x, y;
-} Vector2;
-
-typedef struct {
     Vector2 pos;
     Vector2 vel;
     float heat;
 } Particle;
 
-Particle* particles = NULL;
-int num_particles = 100;
+enum Shape {
+    Spiral,
+    Random
+};
 
-void render_particles(SDL_Renderer* renderer, float zoom) {
+Particle* particles = NULL;
+int num_particles = 200;
+
+void render_particles(SDL_Renderer* renderer, float zoom, Vector2 offset) {
     for (int i = 0; i < num_particles; i++) {
-        SDL_Rect rect = { (int)particles[i].pos.x * zoom, (int)particles[i].pos.y * zoom, R * zoom, R * zoom };
+        SDL_Rect rect = { (int)particles[i].pos.x * zoom + offset.x, (int)particles[i].pos.y * zoom + offset.y, R * zoom, R * zoom };
 
         SDL_SetRenderDrawColor(renderer, particles[i].heat * 5, (1 - particles[i].heat) * 5, 0xff, 255);
         SDL_RenderFillRect(renderer, &rect);
@@ -40,7 +42,7 @@ void render_drag(SDL_Renderer* renderer, Vector2 a, Vector2 b) {
     SDL_RenderDrawLine(renderer, a.x, a.y, b.x, b.y);
 }
 
-void add_particles(int n, int x, int y, float zoom) {
+void add_particles(int n, int x, int y, float zoom, Vector2 offset) {
     Particle* new_particles = realloc(particles, (num_particles + n) * sizeof(Particle));
     if (new_particles == NULL) {
         fprintf(stderr, "Error al asignar memoria\n");
@@ -50,7 +52,7 @@ void add_particles(int n, int x, int y, float zoom) {
     particles = new_particles;
 
     for (int i = num_particles; i < num_particles + n; i++) {
-        Vector2 pos = { (x + i - num_particles) * 1 / zoom, (y + i - num_particles) * 1 / zoom };
+        Vector2 pos = { (x + i - num_particles) * 1 / zoom - offset.x / zoom , (y + i - num_particles) * 1 / zoom - offset.y / zoom };
         Vector2 vel = { 0, 0 };
         Particle particle = { pos, vel, 1.0f };
         particles[i] = particle;
@@ -59,8 +61,8 @@ void add_particles(int n, int x, int y, float zoom) {
     num_particles += n;
 }
 
-void add_particle(Vector2 pos, Vector2 vel, float zoom) {
-    add_particles(1, pos.x, pos.y, zoom);
+void add_particle(Vector2 pos, Vector2 vel, float zoom, Vector2 offset) {
+    add_particles(1, pos.x, pos.y, zoom, offset);
     particles[num_particles - 1].vel = vel;
 }
 
@@ -68,7 +70,7 @@ float get_rand() {
     return (float)rand() / RAND_MAX;
 }
 
-void init_particles() {
+void init_particles(enum Shape shape) {
     Particle* new_particles = malloc(num_particles * sizeof(Particle));
     if (new_particles == NULL) {
         fprintf(stderr, "Error al asignar memoria\n");
@@ -78,7 +80,18 @@ void init_particles() {
     particles = new_particles;
 
     for (int i = 0; i < num_particles; i++) {
-        Vector2 pos = { get_rand() * WINDOW_WIDTH / 2 + WINDOW_WIDTH / 4, get_rand() * WINDOW_WIDTH / 2 + WINDOW_WIDTH / 4 };
+        Vector2 pos;
+        switch (shape) {
+        case Spiral:
+            pos.x = WINDOW_WIDTH / 2 + 2 * cos(i) * exp(0.3 * i / 10);
+            pos.y = WINDOW_WIDTH / 2 + 2 * sin(i) * exp(0.3 * i / 10);
+            break;
+        case Random:
+            pos.x = get_rand() * WINDOW_WIDTH / 2 + WINDOW_WIDTH / 4;
+            pos.y = get_rand() * WINDOW_WIDTH / 2 + WINDOW_WIDTH / 4;
+            break;
+        }
+        
         Vector2 vel = { 0, 0 };
         Particle particle = { pos, vel, 1.0f };
         particles[i] = particle;
@@ -91,30 +104,6 @@ void update_particles(float dt) {
         particles[i].pos.y += particles[i].vel.y * dt;
         particles[i].heat *= 0.999;
     }
-}
-
-float distance(Vector2 a, Vector2 b) {
-    return sqrt((a.x - b.x) * (a.x - b.x) + (a.y - b.y) * (a.y - b.y));
-}
-
-Vector2 sub(Vector2 a, Vector2 b) {
-    Vector2 sub = { a.x - b.x, a.y - b.y };
-    return sub;
-}
-
-float dot(Vector2 a, Vector2 b) {
-    return a.x * b.x + a.y * b.y;
-}
-
-Vector2 mult(Vector2 a, float scalar) {
-    Vector2 mult = { a.x * scalar, a.y * scalar };
-    return mult;
-}
-
-void normalize(Vector2* v) {
-    float scalar = 1 / ((float)sqrt(v->x * v->x + v->y * v->y));
-    v->x *= scalar;
-    v->y *= scalar;
 }
 
 void collide(Particle* a, Particle* b, float dist) {
@@ -161,7 +150,8 @@ void gravity() {
 }
 
 int main() {
-    init_particles();
+    enum Shape shape = Spiral;
+    init_particles(shape);
 
     SDL_Window* window;
     SDL_Renderer* renderer;
@@ -200,7 +190,7 @@ int main() {
     SDL_Event event;
 
     float zoom = 1.0f;
-
+    Vector2 offset = { 0, 0 };
     while (!quit) {
         while (SDL_PollEvent(&event)) {
             switch (event.type) {
@@ -212,7 +202,17 @@ int main() {
                 case SDLK_ESCAPE:
                     quit = true;
                     break;
-                case SDLK_k:
+                case SDLK_a:
+                    offset.x += 10;
+                    break;
+                case SDLK_d:
+                    offset.x -= 10;
+                    break;
+                case SDLK_w:
+                    offset.y += 10;
+                    break;
+                case SDLK_s:
+                    offset.y -= 10;
                     break;
                 }
                 break;
@@ -233,7 +233,7 @@ int main() {
                     right_click = true;
                 }
                 else {
-                    add_particles(10, event.button.x, event.button.y, zoom);
+                    add_particles(10, event.button.x, event.button.y, zoom, offset);
                 }
                 break;
             case SDL_MOUSEBUTTONUP:
@@ -241,7 +241,7 @@ int main() {
                     final_pos.x = event.button.x;
                     final_pos.y = event.button.y;
                     Vector2 res = sub(final_pos, init_pos);
-                    add_particle(init_pos, res, zoom);
+                    add_particle(init_pos, res, zoom, offset);
                     right_click = false;
                 }
                 break;
@@ -262,7 +262,7 @@ int main() {
         //RENDER LOOP START
         update_particles(dt);
         gravity();
-        render_particles(renderer, zoom);
+        render_particles(renderer, zoom, offset);
 
         if (right_click) {
             render_drag(renderer, final_pos, init_pos);
