@@ -22,7 +22,7 @@ typedef struct {
 
 enum Shape {
     Spiral,
-    Random
+    Random,
 };
 
 Particle* particles = NULL;
@@ -191,6 +191,7 @@ int main() {
 
     float zoom = 1.0f;
     Vector2 offset = { 0, 0 };
+
     while (!quit) {
         while (SDL_PollEvent(&event)) {
             switch (event.type) {
