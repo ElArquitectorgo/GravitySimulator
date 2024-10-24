@@ -21,9 +21,21 @@
     <ClCompile Include="vector2.c">
       <Filter>Archivos de origen</Filter>
     </ClCompile>
+    <ClCompile Include="quadtree.c">
+      <Filter>Archivos de origen</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="vector2.h">
+      <Filter>Archivos de encabezado</Filter>
+    </ClInclude>
+    <ClInclude Include="quadtree.h">
+      <Filter>Archivos de encabezado</Filter>
+    </ClInclude>
+    <ClInclude Include="particle.h">
+      <Filter>Archivos de encabezado</Filter>
+    </ClInclude>
+    <ClInclude Include="constants.h">
       <Filter>Archivos de encabezado</Filter>
     </ClInclude>
   </ItemGroup>

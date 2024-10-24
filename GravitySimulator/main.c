@@ -4,21 +4,10 @@
 #include <SDL.h>
 #include <SDL_thread.h>
 
+#include "constants.h"
 #include "vector2.h"
-
-#define WINDOW_WIDTH 800
-#define WINDOW_HEIGHT 800
-
-#define G 0.01f
-#define M 1
-#define R 5
-#define RESTITUTION 0.2f
-
-typedef struct {
-    Vector2 pos;
-    Vector2 vel;
-    float heat;
-} Particle;
+#include "particle.h"
+#include "quadtree.h"
 
 enum Shape {
     Spiral,
@@ -54,7 +43,8 @@ void add_particles(int n, int x, int y, float zoom, Vector2 offset) {
     for (int i = num_particles; i < num_particles + n; i++) {
         Vector2 pos = { (x + i - num_particles) * 1 / zoom - offset.x / zoom , (y + i - num_particles) * 1 / zoom - offset.y / zoom };
         Vector2 vel = { 0, 0 };
-        Particle particle = { pos, vel, 1.0f };
+        Vector2 acc = { 0, 0 };
+        Particle particle = { pos, vel, acc, 1.0f };
         particles[i] = particle;
     }
 
@@ -102,6 +92,13 @@ void update_particles(float dt) {
     for (int i = 0; i < num_particles; i++) {
         particles[i].pos.x += particles[i].vel.x * dt;
         particles[i].pos.y += particles[i].vel.y * dt;
+
+        particles[i].vel.x += particles[i].acc.x * dt;
+        particles[i].vel.y += particles[i].acc.y * dt;
+
+        particles[i].acc.x = 0;
+        particles[i].acc.y = 0;
+
         particles[i].heat *= 0.999;
     }
 }
@@ -137,10 +134,10 @@ void gravity() {
 
             float dist = distance(b->pos, a->pos);
             Vector2 d = sub(b->pos, a->pos);
-            Vector2 acc = mult(d, G * M / (dist * sqrt(dist)));
+            Vector2 acc = mult(d, G * M / (dist * sqrt(dist) + 0.01));
 
-            a->vel.x += acc.x;
-            a->vel.y += acc.y;
+            a->acc.x += acc.x;
+            a->acc.y += acc.y;
 
             if (dist < 2 * R) {
                 collide(a, b, dist);
