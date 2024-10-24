@@ -1,13 +1,14 @@
 #ifndef QUADTREE_H
 #define QUADTREE_H
 
+#include "quadtree.h"
 #include "particle.h"
 #include "vector2.h"
 #include <stdbool.h>
 
-typedef struct {
+struct quadTree {
     float x, y, w;
-    QuadTree* children;
+    struct quadTree* children;
     bool leaf;
     Particle* particle;
 
@@ -15,7 +16,8 @@ typedef struct {
     Vector2 center;
     float total_mass;
     int count;
-} QuadTree;
+};
+typedef struct quadTree QuadTree;
 
 QuadTree init_tree(float x, float y, float w);
 

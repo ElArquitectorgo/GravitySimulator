@@ -9,6 +9,9 @@
 #include "particle.h"
 #include "quadtree.h"
 
+#define MIN(a, b) (((a) < (b)) ? (a) : (b))
+#define MAX(a, b) (((a) > (b)) ? (a) : (b))
+
 enum Shape {
     Spiral,
     Random,
@@ -16,6 +19,8 @@ enum Shape {
 
 Particle* particles = NULL;
 int num_particles = 200;
+
+QuadTree root;
 
 void render_particles(SDL_Renderer* renderer, float zoom, Vector2 offset) {
     for (int i = 0; i < num_particles; i++) {
@@ -125,7 +130,62 @@ void collide(Particle* a, Particle* b, float dist) {
     a->vel.y -= force.y;
 }
 
+Vector2 gravity_acc(Vector2 a, Vector2 b, float m) {
+    float dist = distance(b, a);
+    if (dist <= 4 * R * R) {
+        Vector2 v = { 0, 0 };
+        return v;
+    }
+    return mult(sub(b, a), G * m / (dist * sqrt(dist) + 0.01));
+}
+
+void gravitate(Particle* p, QuadTree* tree) {
+    if (tree->leaf) {
+        if (tree->particle == NULL || tree->particle == p) return;
+        Vector2 acc = gravity_acc(p->pos, tree->particle->pos, M);
+        p->vel.x += acc.x;
+        p->vel.y += acc.y;
+        return;
+    }
+
+    if (tree->center.x == 0 && tree->center.y == 0) {
+        tree->center = mult(tree->center_mass, 1 / tree->count);
+    }
+
+    if (tree->w / distance(p->pos, tree->center) < THETA) {
+        Vector2 acc = gravity_acc(p->pos, tree->center, tree->total_mass);
+        p->vel.x += acc.x;
+        p->vel.y += acc.y;
+        return;
+    }
+
+    for (int i = 0; i < 4; i++) {
+        gravitate(p, &tree->children[i]);
+    }
+}
+
 void gravity() {
+    for (int i = 0; i < num_particles; i++) {
+        gravitate(&particles[i], &root);
+    }
+}
+
+void _gravity() {
+    for (int i = 0; i < num_particles; i++) {
+        Particle* a = &particles[i];
+        for (int j = 0; j < num_particles; j++) {
+            if (i == j) continue;
+            Particle* b = &particles[j];
+
+            Vector2 acc = gravity_acc(a->pos, b->pos, M);
+
+            a->acc.x += acc.x;
+            a->acc.y += acc.y;
+        }
+    }
+}
+
+void collide_particles() {
     for (int i = 0; i < num_particles; i++) {
         Particle* a = &particles[i];
         for (int j = 0; j < num_particles; j++) {
@@ -133,16 +193,31 @@ void gravity() {
             Particle* b = &particles[j];
 
             float dist = distance(b->pos, a->pos);
-            Vector2 d = sub(b->pos, a->pos);
-            Vector2 acc = mult(d, G * M / (dist * sqrt(dist) + 0.01));
-
-            a->acc.x += acc.x;
-            a->acc.y += acc.y;
 
             if (dist < 2 * R) {
                 collide(a, b, dist);
             }
         }
+    }
+}
+
+void construct_tree() {
+    float min_x = 100000000000000000;
+    float max_x = -100000000000000000;
+    float min_y = 100000000000000000;
+    float max_y = -100000000000000000;
+
+    for (int i = 0; i < num_particles; i++) {
+        min_x = MIN(min_x, particles[i].pos.x);
+        max_x = MAX(max_x, particles[i].pos.x);
+        min_y = MIN(min_x, particles[i].pos.y);
+        max_y = MAX(max_x, particles[i].pos.y);
+    }
+
+    root = init_tree(min_x, min_y, MAX(max_x - min_x, max_y - min_y));
+
+    for (int i = 0; i < num_particles; i++) {
+        insert(&root, &particles[i]);
     }
 }
 
@@ -259,7 +334,9 @@ int main() {
 
         //RENDER LOOP START
         update_particles(dt);
+        construct_tree();
         gravity();
+        collide_particles();
         render_particles(renderer, zoom, offset);
 
         if (right_click) {

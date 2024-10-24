@@ -16,10 +16,6 @@ QuadTree init_tree(float x, float y, float w) {
         exit(EXIT_FAILURE);
     }
 
-    for (int i = 0; i < 4; i++) {
-        tree.children[i].children = NULL;
-    }
-
     tree.center_mass.x = 0.0f;
     tree.center_mass.y = 0.0f;
     tree.center.x = 0;
@@ -63,7 +59,7 @@ void insert(QuadTree* tree, Particle* b) {
 
             while (index_a == index_b) {
                 split(tree);
-                tree = tree->children[index_a];
+                tree = &tree->children[index_a];
                 // Habrá que ver si al reasignar tree se me cambia el puntero de 'a' (no creo)
                 index_a = which(tree, a->pos);
                 index_b = which(tree, b->pos);
@@ -109,5 +105,5 @@ void insert(QuadTree* tree, Particle* b) {
     tree->center_mass.y += b->pos.y;
     tree->total_mass += M;
     tree->count++;
-    insert(tree->children[which(tree, b->pos)], b);
+    insert(&tree->children[which(tree, b->pos)], b);
 }
