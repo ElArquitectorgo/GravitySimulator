@@ -13,7 +13,7 @@ struct quadTree {
     Particle* particle;
 
     Vector2 center_mass;
-    Vector2 center;
+    Vector2* center;
     float total_mass;
     int count;
 };

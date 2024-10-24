@@ -18,8 +18,7 @@ QuadTree init_tree(float x, float y, float w) {
 
     tree.center_mass.x = 0.0f;
     tree.center_mass.y = 0.0f;
-    tree.center.x = 0;
-    tree.center.y = 0;
+    tree.center = NULL;
     tree.total_mass = 0.0f;
     tree.count = 0;
 

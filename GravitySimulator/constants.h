@@ -8,6 +8,6 @@
 #define M 1
 #define R 5
 #define RESTITUTION 0.2f
-#define THETA 0.5
+#define THETA 0.7
 
 #endif

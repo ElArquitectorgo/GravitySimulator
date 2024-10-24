@@ -18,7 +18,7 @@ enum Shape {
 };
 
 Particle* particles = NULL;
-int num_particles = 200;
+int num_particles = 500;
 
 QuadTree root;
 
@@ -97,13 +97,6 @@ void update_particles(float dt) {
     for (int i = 0; i < num_particles; i++) {
         particles[i].pos.x += particles[i].vel.x * dt;
         particles[i].pos.y += particles[i].vel.y * dt;
-
-        particles[i].vel.x += particles[i].acc.x * dt;
-        particles[i].vel.y += particles[i].acc.y * dt;
-
-        particles[i].acc.x = 0;
-        particles[i].acc.y = 0;
-
         particles[i].heat *= 0.999;
     }
 }
@@ -148,12 +141,27 @@ void gravitate(Particle* p, QuadTree* tree) {
         return;
     }
 
-    if (tree->center.x == 0 && tree->center.y == 0) {
-        tree->center = mult(tree->center_mass, 1 / tree->count);
+    if (tree->center == NULL) {
+        tree->center = malloc(sizeof(Vector2));
+
+        if (tree->center == NULL) {
+            perror("Error al asignar memoria para el centro");
+            exit(EXIT_FAILURE);
+        }
+
+        Vector2 v;
+        if (tree->count == 0) {
+            v.x = WINDOW_WIDTH / 2;
+            v.y = WINDOW_HEIGHT / 2;
+        }
+        else {
+            v = mult(tree->center_mass, 1.0f / tree->count);
+        }
+        *tree->center = v;
     }
 
-    if (tree->w / distance(p->pos, tree->center) < THETA) {
-        Vector2 acc = gravity_acc(p->pos, tree->center, tree->total_mass);
+    if (tree->w / distance(p->pos, *(tree->center)) < THETA) {
+        Vector2 acc = gravity_acc(p->pos, *(tree->center), tree->total_mass);
         p->vel.x += acc.x;
         p->vel.y += acc.y;
         return;
@@ -201,6 +209,24 @@ void collide_particles() {
     }
 }
 
+void free_tree(QuadTree* tree) {
+    if (tree->center != NULL) {
+        free(tree->center);
+        tree->center = NULL;
+    }
+
+    if (tree->children != NULL) {
+        if (!tree->leaf) {
+            for (int i = 0; i < 4; i++) {
+                free_tree(&tree->children[i]);
+            }
+        }
+        free(tree->children);
+        tree->children = NULL;
+    }
+}
+
+
 void construct_tree() {
     float min_x = 100000000000000000;
     float max_x = -100000000000000000;
@@ -210,10 +236,10 @@ void construct_tree() {
     for (int i = 0; i < num_particles; i++) {
         min_x = MIN(min_x, particles[i].pos.x);
         max_x = MAX(max_x, particles[i].pos.x);
-        min_y = MIN(min_x, particles[i].pos.y);
-        max_y = MAX(max_x, particles[i].pos.y);
+        min_y = MIN(min_y, particles[i].pos.y);
+        max_y = MAX(max_y, particles[i].pos.y);
     }
-
+    free_tree(&root);
     root = init_tree(min_x, min_y, MAX(max_x - min_x, max_y - min_y));
 
     for (int i = 0; i < num_particles; i++) {
