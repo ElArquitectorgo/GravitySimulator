@@ -18,7 +18,7 @@ enum Shape {
 };
 
 Particle* particles = NULL;
-int num_particles = 500;
+int num_particles = 10;
 
 QuadTree root;
 
@@ -95,8 +95,8 @@ void init_particles(enum Shape shape) {
             pos.y = WINDOW_WIDTH / 2 + 2 * sin(i) * exp(0.3 * i / 10);
             break;
         case Random:
-            pos.x = get_rand() * WINDOW_WIDTH / 2 + WINDOW_WIDTH / 4;
-            pos.y = get_rand() * WINDOW_WIDTH / 2 + WINDOW_WIDTH / 4;
+            pos.x = get_rand() * WINDOW_WIDTH;
+            pos.y = get_rand() * WINDOW_HEIGHT;
             break;
         }
         
@@ -115,11 +115,13 @@ void update_particles(float dt) {
 }
 
 void collide(Particle* a, Particle* b, float dist) {
+    if (dist > 2 * R) return;
+
     Vector2 d_pos = sub(a->pos, b->pos);
     normalize(&d_pos);
 
-    float invHeatA = 1 / (a->heat + 1);
-    float invHeatB = 1 / (b->heat + 1);
+    float invHeatA = 1.0f / (a->heat + 1);
+    float invHeatB = 1.0f / (b->heat + 1);
     Vector2 mtd = mult(d_pos, (2 * R - dist) * invHeatA / (invHeatA + invHeatB));
     a->pos.x += mtd.x;
     a->pos.y += mtd.y;
@@ -130,10 +132,28 @@ void collide(Particle* a, Particle* b, float dist) {
 
     if (impact_speed > 0) return;
 
-    Vector2 force = mult(d_pos, impact_speed * (1 + RESTITUTION) * 0.5);   
+    Vector2 force = mult(d_pos, impact_speed * (1.0f + RESTITUTION) * 0.5);   
     
     a->vel.x -= force.x;
     a->vel.y -= force.y;
+}
+
+void collision(Particle* p, QuadTree* tree) {
+    if (tree->leaf) {
+        if (tree->particle == NULL || tree->particle == p) return;
+
+        float dist = distance(p->pos, tree->particle->pos);
+        collide(p, tree->particle, dist);
+        return;
+    }
+
+    for (int i = 0; i < 4; i++) {
+        bool outside = p->pos.x + 2 * R < tree->children[i].x || p->pos.x - 2 * R > tree->children[i].x + tree->children[i].w
+            || p->pos.y + 2 * R < tree->children[i].y || p->pos.y - 2 * R > tree->children[i].y + tree->children[i].w;
+        if (!outside) {
+            collision(p, &tree->children[i]);
+        }
+    }
 }
 
 Vector2 gravity_acc(Vector2 a, Vector2 b, float m) {
@@ -142,12 +162,13 @@ Vector2 gravity_acc(Vector2 a, Vector2 b, float m) {
         Vector2 v = { 0, 0 };
         return v;
     }
-    return mult(sub(b, a), G * m / (dist * sqrt(dist) + 0.01));
+    return mult(sub(b, a), G * m / (dist * sqrt(dist)));
 }
 
 void gravitate(Particle* p, QuadTree* tree) {
     if (tree->leaf) {
         if (tree->particle == NULL || tree->particle == p) return;
+
         Vector2 acc = gravity_acc(p->pos, tree->particle->pos, M);
         p->vel.x += acc.x;
         p->vel.y += acc.y;
@@ -209,16 +230,7 @@ void _gravity() {
 void collide_particles() {
     for (int i = 0; i < num_particles; i++) {
         Particle* a = &particles[i];
-        for (int j = 0; j < num_particles; j++) {
-            if (i == j) continue;
-            Particle* b = &particles[j];
-
-            float dist = distance(b->pos, a->pos);
-
-            if (dist < 2 * R) {
-                collide(a, b, dist);
-            }
-        }
+        collision(a, &root);
     }
 }
 
