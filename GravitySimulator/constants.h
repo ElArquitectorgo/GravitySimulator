@@ -7,7 +7,7 @@
 #define G 0.1f
 #define M 1
 #define R 5
-#define RESTITUTION 0.2f
+#define RESTITUTION 0.1f
 #define THETA 0.7
 
 #endif

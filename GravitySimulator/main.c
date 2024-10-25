@@ -36,6 +36,19 @@ void render_drag(SDL_Renderer* renderer, Vector2 a, Vector2 b) {
     SDL_RenderDrawLine(renderer, a.x, a.y, b.x, b.y);
 }
 
+void render_tree(SDL_Renderer* renderer, QuadTree* tree, float zoom, Vector2 offset) {
+    SDL_SetRenderDrawColor(renderer, 0xff, 0xff, 0xff, 255);
+    if (tree->children != NULL) {
+        if (!tree->leaf) {
+            for (int i = 0; i < 4; i++) {
+                render_tree(renderer, &tree->children[i], zoom, offset);
+            }
+        }
+        SDL_Rect rect = { tree->x * zoom + offset.x, tree->y * zoom + offset.y, tree->w * 2 * zoom, tree->w * 2 * zoom};
+        SDL_RenderDrawRect(renderer, &rect);
+    }
+}
+
 void add_particles(int n, int x, int y, float zoom, Vector2 offset) {
     Particle* new_particles = realloc(particles, (num_particles + n) * sizeof(Particle));
     if (new_particles == NULL) {
@@ -283,6 +296,7 @@ int main() {
 
     bool quit = false;
     bool right_click = false;
+    bool show_grid = false;
     Vector2 init_pos = { -1000, -1000 };
     Vector2 final_pos = { -1000, -1000 };
     SDL_Event event;
@@ -313,6 +327,8 @@ int main() {
                 case SDLK_s:
                     offset.y -= 10;
                     break;
+                case SDLK_k:
+                    show_grid = !show_grid;
                 }
                 break;
             case SDL_MOUSEWHEEL:
@@ -367,6 +383,10 @@ int main() {
 
         if (right_click) {
             render_drag(renderer, final_pos, init_pos);
+        }
+
+        if (show_grid) {
+            render_tree(renderer, &root, zoom, offset);
         }
 
         //RENDER LOOP END
