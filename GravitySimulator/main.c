@@ -14,11 +14,12 @@
 
 enum Shape {
     Spiral,
+    Sphere,
     Random,
 };
 
 Particle* particles = NULL;
-int num_particles = 10;
+int num_particles = 100;
 
 QuadTree root;
 
@@ -88,11 +89,24 @@ void init_particles(enum Shape shape) {
     particles = new_particles;
 
     for (int i = 0; i < num_particles; i++) {
-        Vector2 pos;
+        Vector2 pos = { 0, 0 };
+        Vector2 vel = { 0, 0 };
         switch (shape) {
         case Spiral:
             pos.x = WINDOW_WIDTH / 2 + 2 * cos(i) * exp(0.3 * i / 10);
             pos.y = WINDOW_WIDTH / 2 + 2 * sin(i) * exp(0.3 * i / 10);
+            break;
+        case Sphere:
+            // From https://github.com/womogenes/GravitySim/blob/no-collisions/GravitySim.pde
+
+            float angle = get_rand() * 3.1415 * 2;
+            float d = get_rand() * WINDOW_WIDTH;
+            pos.x = d * cos(angle) + WINDOW_WIDTH / 2;
+            pos.y = d * sin(angle) + WINDOW_WIDTH / 2;
+
+            float mag = d * 0.02;
+            vel.x = mag * cos(angle + 3.1415 / 2);
+            vel.y = mag * sin(angle + 3.1415 / 2);
             break;
         case Random:
             pos.x = get_rand() * WINDOW_WIDTH;
@@ -100,7 +114,6 @@ void init_particles(enum Shape shape) {
             break;
         }
         
-        Vector2 vel = { 0, 0 };
         Particle particle = { pos, vel, 1.0f };
         particles[i] = particle;
     }
@@ -126,8 +139,7 @@ void collide(Particle* a, Particle* b, float dist) {
     a->pos.x += mtd.x;
     a->pos.y += mtd.y;
 
-    Vector2 vel_diff = sub(a->vel, b->vel);
-    float impact_speed = dot(vel_diff, d_pos);
+    float impact_speed = dot(sub(a->vel, b->vel), d_pos);
     a->heat += abs(impact_speed) * 0.1;
 
     if (impact_speed > 0) return;
@@ -183,15 +195,7 @@ void gravitate(Particle* p, QuadTree* tree) {
             exit(EXIT_FAILURE);
         }
 
-        Vector2 v;
-        if (tree->count == 0) {
-            v.x = WINDOW_WIDTH / 2;
-            v.y = WINDOW_HEIGHT / 2;
-        }
-        else {
-            v = mult(tree->center_mass, 1.0f / tree->count);
-        }
-        *tree->center = v;
+        *tree->center = mult(tree->center_mass, 1.0f / tree->count);
     }
 
     if (tree->w / distance(p->pos, *(tree->center)) < THETA) {
@@ -221,8 +225,8 @@ void _gravity() {
 
             Vector2 acc = gravity_acc(a->pos, b->pos, M);
 
-            a->acc.x += acc.x;
-            a->acc.y += acc.y;
+            a->vel.x += acc.x;
+            a->vel.y += acc.y;
         }
     }
 }
@@ -273,7 +277,7 @@ void construct_tree() {
 }
 
 int main() {
-    enum Shape shape = Spiral;
+    enum Shape shape = Sphere;
     init_particles(shape);
 
     SDL_Window* window;

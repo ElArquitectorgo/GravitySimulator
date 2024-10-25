@@ -59,14 +59,14 @@ void insert(QuadTree* tree, Particle* b) {
             while (index_a == index_b) {
                 split(tree);
                 tree = &tree->children[index_a];
-                // Habrá que ver si al reasignar tree se me cambia el puntero de 'a' (no creo)
+                
                 index_a = which(tree, a->pos);
                 index_b = which(tree, b->pos);
 
                 tree->center_mass.x += a->pos.x;
                 tree->center_mass.y += a->pos.y;
                 tree->center_mass.x += b->pos.x;
-                tree->center_mass.x += b->pos.x;
+                tree->center_mass.y += b->pos.y;
                 tree->total_mass += 2 * M;
                 tree->count += 2;
             }
