@@ -19,9 +19,10 @@ enum Shape {
 };
 
 Particle* particles = NULL;
-int num_particles = 100;
+int num_particles = 500;
 
 QuadTree root;
+enum Shape shape = Sphere;
 
 void render_particles(SDL_Renderer* renderer, float zoom, Vector2 offset) {
     for (int i = 0; i < num_particles; i++) {
@@ -72,6 +73,7 @@ void add_particles(int n, int x, int y, float zoom, Vector2 offset) {
 
 void add_particle(Vector2 pos, Vector2 vel, float zoom, Vector2 offset) {
     add_particles(1, pos.x, pos.y, zoom, offset);
+    vel = mult(vel, 10);
     particles[num_particles - 1].vel = vel;
 }
 
@@ -133,9 +135,7 @@ void collide(Particle* a, Particle* b, float dist) {
     Vector2 d_pos = sub(a->pos, b->pos);
     normalize(&d_pos);
 
-    float invHeatA = 1.0f / (a->heat + 1);
-    float invHeatB = 1.0f / (b->heat + 1);
-    Vector2 mtd = mult(d_pos, (2 * R - dist) * invHeatA / (invHeatA + invHeatB));
+    Vector2 mtd = mult(d_pos, R - dist / 2);
     a->pos.x += mtd.x;
     a->pos.y += mtd.y;
 
@@ -148,6 +148,9 @@ void collide(Particle* a, Particle* b, float dist) {
     
     a->vel.x -= force.x;
     a->vel.y -= force.y;
+
+    b->vel.x += force.x;
+    b->vel.y += force.y;
 }
 
 void collision(Particle* p, QuadTree* tree) {
@@ -277,7 +280,6 @@ void construct_tree() {
 }
 
 int main() {
-    enum Shape shape = Sphere;
     init_particles(shape);
 
     SDL_Window* window;
@@ -394,7 +396,7 @@ int main() {
         update_particles(dt);
         construct_tree();
         gravity();
-        collide_particles();
+        //collide_particles();
         render_particles(renderer, zoom, offset);
 
         if (right_click) {
