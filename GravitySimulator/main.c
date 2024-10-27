@@ -31,8 +31,18 @@ QuadTree root;
 enum Shape shape = Solar;
 
 void render_particles(SDL_Renderer* renderer, float zoom, Vector2 offset) {
+    // In the case where we want to see a relation between size and mass, we
+    // use natural logarithm to prevent huge bodies.
+    bool solar = false;
+    switch (shape) {
+    case Solar:
+        solar = true;
+        break;
+    }
     for (int i = 0; i < num_particles; i++) {
-        SDL_Rect rect = { (int)particles[i].pos.x * zoom + offset.x, (int)particles[i].pos.y * zoom + offset.y, R * zoom, R * zoom };
+        float r = R * zoom;
+        if (solar) r *= log(particles[i].mass + 1); // "Normalizes"
+        SDL_Rect rect = { (int)particles[i].pos.x * zoom + offset.x, (int)particles[i].pos.y * zoom + offset.y, r, r };
 
         //SDL_SetRenderDrawColor(renderer, particles[i].heat * 5, (1 - particles[i].heat) * 5, 0xff, 255);
         SDL_SetRenderDrawColor(renderer, 255, 186, 3, 255);
