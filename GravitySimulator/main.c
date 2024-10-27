@@ -15,7 +15,7 @@
 // Heavily inspired in William Y. Feng's implementation.
 // See https://github.com/womogenes/GravitySim
 
-// Be careful if you increase by a lot num_particles with Spiral shape.
+// Be careful if you increase by a lot num_particles with Spiral or Solar shapes.
 
 enum Shape {
     Spiral,
@@ -75,7 +75,7 @@ float get_rand() {
 void init_particles(enum Shape shape) {
     Particle* new_particles = malloc(num_particles * sizeof(Particle));
     if (new_particles == NULL) {
-        fprintf(stderr, "Error al asignar memoria\n");
+        fprintf(stderr, "Error allocating memory for particles.\n");
         exit(1);
     }
 
@@ -123,7 +123,7 @@ void init_particles(enum Shape shape) {
 void add_particles(int n, int x, int y, float mass, float zoom, Vector2 offset) {
     Particle* new_particles = realloc(particles, (num_particles + n) * sizeof(Particle));
     if (new_particles == NULL) {
-        fprintf(stderr, "Error al asignar memoria\n");
+        fprintf(stderr, "Error reallocating memory for particles.\n");
         exit(1);
     }
 
@@ -160,8 +160,7 @@ void collide(Particle* a, Particle* b, float dist) {
     normalize(&d_pos);
 
     Vector2 mtd = mult(d_pos, R - dist / 2);
-    a->pos.x += mtd.x;
-    a->pos.y += mtd.y;
+    add(&a->pos, &mtd);
 
     float impact_speed = dot(sub(a->vel, b->vel), d_pos);
     a->heat += abs(impact_speed) * 0.1;
@@ -170,11 +169,8 @@ void collide(Particle* a, Particle* b, float dist) {
 
     Vector2 force = mult(d_pos, impact_speed * (1.0f + RESTITUTION) * 0.5);   
     
-    a->vel.x -= force.x;
-    a->vel.y -= force.y;
-
-    b->vel.x += force.x;
-    b->vel.y += force.y;
+    subs(&a->vel, &force);
+    add(&b->vel, &force);
 }
 
 void collision(Particle* p, QuadTree* tree) {
@@ -205,8 +201,7 @@ void gravitate(Particle* p, QuadTree* tree) {
         if (tree->particle == NULL || tree->particle == p) return;
 
         Vector2 acc = gravity_acc(p->pos, tree->particle->pos, tree->particle->mass);
-        p->vel.x += acc.x;
-        p->vel.y += acc.y;
+        add(&p->vel, &acc);
         return;
     }
 
@@ -214,7 +209,7 @@ void gravitate(Particle* p, QuadTree* tree) {
         tree->center = malloc(sizeof(Vector2));
 
         if (tree->center == NULL) {
-            perror("Error al asignar memoria para el centro");
+            perror("Error allocating memory for tree.center.\n");
             exit(EXIT_FAILURE);
         }
 
@@ -223,8 +218,7 @@ void gravitate(Particle* p, QuadTree* tree) {
 
     if (tree->w / distance(p->pos, *(tree->center)) < THETA) {
         Vector2 acc = gravity_acc(p->pos, *(tree->center), tree->total_mass);
-        p->vel.x += acc.x;
-        p->vel.y += acc.y;
+        add(&p->vel, &acc);
         return;
     }
 
@@ -247,9 +241,7 @@ void _gravity() {
             Particle* b = &particles[j];
 
             Vector2 acc = gravity_acc(a->pos, b->pos, b->mass);
-
-            a->vel.x += acc.x;
-            a->vel.y += acc.y;
+            add(&a->vel, &acc);
         }
     }
 }
@@ -377,7 +369,7 @@ int main() {
                     zoom /= 1.1f;
                 }
                 offset.x = WINDOW_WIDTH / 2 - WINDOW_WIDTH / 2 * zoom;
-                offset.y = WINDOW_WIDTH / 2 - WINDOW_WIDTH / 2 * zoom;
+                offset.y = WINDOW_HEIGHT / 2 - WINDOW_HEIGHT / 2 * zoom;
                 break;
             case SDL_MOUSEBUTTONDOWN:
                 if (event.button.button == SDL_BUTTON_RIGHT) {

@@ -1,5 +1,6 @@
 #include "quadtree.h"
 #include "constants.h"
+#include "vector2.h"
 #include <stdlib.h>
 
 QuadTree init_tree(float x, float y, float w) {
@@ -12,7 +13,7 @@ QuadTree init_tree(float x, float y, float w) {
     tree.children = malloc(4 * sizeof(QuadTree));
 
     if (tree.children == NULL) {
-        perror("Error al asignar memoria para los hijos");
+        perror("Error allocating memory for children.\n");
         exit(EXIT_FAILURE);
     }
 
@@ -46,8 +47,7 @@ int which(QuadTree* tree, Vector2 v) {
 void insert(QuadTree* tree, Particle* b) {
     if (tree->leaf) {
         if (tree->particle != NULL) {
-            tree->center_mass.x += b->pos.x;
-            tree->center_mass.y += b->pos.y;
+            add(&tree->center_mass, &b->pos);
             tree->total_mass += b->mass;
             tree->count++;
 
@@ -63,10 +63,8 @@ void insert(QuadTree* tree, Particle* b) {
                 index_a = which(tree, a->pos);
                 index_b = which(tree, b->pos);
 
-                tree->center_mass.x += a->pos.x;
-                tree->center_mass.y += a->pos.y;
-                tree->center_mass.x += b->pos.x;
-                tree->center_mass.y += b->pos.y;
+                add(&tree->center_mass, &a->pos);
+                add(&tree->center_mass, &b->pos);
                 tree->total_mass += a->mass + b->mass;
                 tree->count += 2;
             }
@@ -75,10 +73,8 @@ void insert(QuadTree* tree, Particle* b) {
             tree->children[index_a].particle = a;
             tree->children[index_b].particle = b;
 
-            tree->children[index_a].center_mass.x += a->pos.x;
-            tree->children[index_a].center_mass.y += a->pos.y;
-            tree->children[index_b].center_mass.x += b->pos.x;
-            tree->children[index_b].center_mass.y += b->pos.y;
+            add(&tree->children[index_a].center_mass, &a->pos);
+            add(&tree->children[index_b].center_mass, &b->pos);
 
             tree->children[index_a].total_mass += a->mass;
             tree->children[index_b].total_mass += b->mass;
@@ -92,16 +88,15 @@ void insert(QuadTree* tree, Particle* b) {
         }
 
         tree->particle = b;
-        tree->center_mass.x += b->pos.x;
-        tree->center_mass.y += b->pos.y;
+
+        add(&tree->center_mass, &b->pos);
         tree->total_mass += b->mass;
         tree->count++;
 
         return;
     }
 
-    tree->center_mass.x += b->pos.x;
-    tree->center_mass.y += b->pos.y;
+    add(&tree->center_mass, &b->pos);
     tree->total_mass += b->mass;
     tree->count++;
     insert(&tree->children[which(tree, b->pos)], b);

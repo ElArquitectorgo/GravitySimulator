@@ -2,6 +2,16 @@
 #include <math.h>
 #include <stdio.h>
 
+void add(Vector2* a, Vector2* b) {
+    a->x += b->x;
+    a->y += b->y;
+}
+
+void subs(Vector2* a, Vector2* b) {
+    a->x -= b->x;
+    a->y -= b->y;
+}
+
 float distance(Vector2 a, Vector2 b) {
     return sqrt((a.x - b.x) * (a.x - b.x) + (a.y - b.y) * (a.y - b.y));
 }
