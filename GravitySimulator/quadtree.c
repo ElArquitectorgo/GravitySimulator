@@ -48,7 +48,7 @@ void insert(QuadTree* tree, Particle* b) {
         if (tree->particle != NULL) {
             tree->center_mass.x += b->pos.x;
             tree->center_mass.y += b->pos.y;
-            tree->total_mass += M;
+            tree->total_mass += b->mass;
             tree->count++;
 
             Particle* a = tree->particle;
@@ -67,7 +67,7 @@ void insert(QuadTree* tree, Particle* b) {
                 tree->center_mass.y += a->pos.y;
                 tree->center_mass.x += b->pos.x;
                 tree->center_mass.y += b->pos.y;
-                tree->total_mass += 2 * M;
+                tree->total_mass += a->mass + b->mass;
                 tree->count += 2;
             }
 
@@ -80,8 +80,8 @@ void insert(QuadTree* tree, Particle* b) {
             tree->children[index_b].center_mass.x += b->pos.x;
             tree->children[index_b].center_mass.y += b->pos.y;
 
-            tree->children[index_a].total_mass += M;
-            tree->children[index_b].total_mass += M;
+            tree->children[index_a].total_mass += a->mass;
+            tree->children[index_b].total_mass += b->mass;
             
             tree->children[index_a].count++;
             tree->children[index_b].count++;
@@ -94,7 +94,7 @@ void insert(QuadTree* tree, Particle* b) {
         tree->particle = b;
         tree->center_mass.x += b->pos.x;
         tree->center_mass.y += b->pos.y;
-        tree->total_mass += M;
+        tree->total_mass += b->mass;
         tree->count++;
 
         return;
@@ -102,7 +102,7 @@ void insert(QuadTree* tree, Particle* b) {
 
     tree->center_mass.x += b->pos.x;
     tree->center_mass.y += b->pos.y;
-    tree->total_mass += M;
+    tree->total_mass += b->mass;
     tree->count++;
     insert(&tree->children[which(tree, b->pos)], b);
 }

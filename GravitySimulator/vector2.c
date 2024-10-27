@@ -1,5 +1,6 @@
 #include "vector2.h"
 #include <math.h>
+#include <stdio.h>
 
 float distance(Vector2 a, Vector2 b) {
     return sqrt((a.x - b.x) * (a.x - b.x) + (a.y - b.y) * (a.y - b.y));
@@ -23,4 +24,8 @@ void normalize(Vector2* v) {
     float scalar = 1 / ((float)sqrt(v->x * v->x + v->y * v->y));
     v->x *= scalar;
     v->y *= scalar;
+}
+
+void print_vector(Vector2* v) {
+    printf("%f, %f\n", v->x, v->y);
 }

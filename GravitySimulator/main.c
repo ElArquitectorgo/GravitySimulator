@@ -12,26 +12,30 @@
 #define MIN(a, b) (((a) < (b)) ? (a) : (b))
 #define MAX(a, b) (((a) > (b)) ? (a) : (b))
 
-// Heavily inspired in William Y. Feng's implementation
+// Heavily inspired in William Y. Feng's implementation.
 // See https://github.com/womogenes/GravitySim
+
+// Be careful if you increase by a lot num_particles with Spiral shape.
 
 enum Shape {
     Spiral,
     Sphere,
     Random,
+    Solar,
 };
 
 Particle* particles = NULL;
-int num_particles = 500;
+int num_particles = 8;
 
 QuadTree root;
-enum Shape shape = Sphere;
+enum Shape shape = Solar;
 
 void render_particles(SDL_Renderer* renderer, float zoom, Vector2 offset) {
     for (int i = 0; i < num_particles; i++) {
         SDL_Rect rect = { (int)particles[i].pos.x * zoom + offset.x, (int)particles[i].pos.y * zoom + offset.y, R * zoom, R * zoom };
 
-        SDL_SetRenderDrawColor(renderer, particles[i].heat * 5, (1 - particles[i].heat) * 5, 0xff, 255);
+        //SDL_SetRenderDrawColor(renderer, particles[i].heat * 5, (1 - particles[i].heat) * 5, 0xff, 255);
+        SDL_SetRenderDrawColor(renderer, 255, 186, 3, 255);
         SDL_RenderFillRect(renderer, &rect);
     }
 }
@@ -49,35 +53,9 @@ void render_tree(SDL_Renderer* renderer, QuadTree* tree, float zoom, Vector2 off
                 render_tree(renderer, &tree->children[i], zoom, offset);
             }
         }
-        SDL_Rect rect = { tree->x * zoom + offset.x, tree->y * zoom + offset.y, tree->w * 2 * zoom, tree->w * 2 * zoom};
-        SDL_RenderDrawRect(renderer, &rect);
     }
-}
-
-void add_particles(int n, int x, int y, float zoom, Vector2 offset) {
-    Particle* new_particles = realloc(particles, (num_particles + n) * sizeof(Particle));
-    if (new_particles == NULL) {
-        fprintf(stderr, "Error al asignar memoria\n");
-        exit(1);
-    }
-
-    particles = new_particles;
-
-    for (int i = num_particles; i < num_particles + n; i++) {
-        Vector2 pos = { (x + i - num_particles) * 1 / zoom - offset.x / zoom , (y + i - num_particles) * 1 / zoom - offset.y / zoom };
-        Vector2 vel = { 0, 0 };
-        Vector2 acc = { 0, 0 };
-        Particle particle = { pos, vel, acc, 1.0f };
-        particles[i] = particle;
-    }
-
-    num_particles += n;
-}
-
-void add_particle(Vector2 pos, Vector2 vel, float zoom, Vector2 offset) {
-    add_particles(1, pos.x, pos.y, zoom, offset);
-    vel = mult(vel, 10);
-    particles[num_particles - 1].vel = vel;
+    SDL_Rect rect = { tree->x * zoom + offset.x, tree->y * zoom + offset.y, tree->w * zoom, tree->w * zoom };
+    SDL_RenderDrawRect(renderer, &rect);
 }
 
 float get_rand() {
@@ -96,14 +74,13 @@ void init_particles(enum Shape shape) {
     for (int i = 0; i < num_particles; i++) {
         Vector2 pos = { 0, 0 };
         Vector2 vel = { 0, 0 };
+        float mass = 1.0f;
         switch (shape) {
         case Spiral:
             pos.x = WINDOW_WIDTH / 2 + 2 * cos(i) * exp(0.3 * i / 10);
             pos.y = WINDOW_WIDTH / 2 + 2 * sin(i) * exp(0.3 * i / 10);
             break;
         case Sphere:
-            // From https://github.com/womogenes/GravitySim/blob/no-collisions/GravitySim.pde
-
             float angle = get_rand() * 3.1415 * 2;
             float d = get_rand() * WINDOW_WIDTH;
             pos.x = d * cos(angle) + WINDOW_WIDTH / 2;
@@ -117,11 +94,45 @@ void init_particles(enum Shape shape) {
             pos.x = get_rand() * WINDOW_WIDTH;
             pos.y = get_rand() * WINDOW_HEIGHT;
             break;
+        case Solar:
+            pos.x = WINDOW_WIDTH / 2 + i * 50;
+            pos.y = WINDOW_HEIGHT / 2;
+            vel.x = -5;
+            vel.y = 200;
+            if (i == 0) vel.y = 0;
+            mass = 100.0f / (i + 1);
+            if (i == 0) mass = 10000.0;
+            break;
         }
-        
-        Particle particle = { pos, vel, 1.0f };
+
+        Particle particle = { pos, vel, mass, 1.0f };
         particles[i] = particle;
     }
+}
+
+void add_particles(int n, int x, int y, float mass, float zoom, Vector2 offset) {
+    Particle* new_particles = realloc(particles, (num_particles + n) * sizeof(Particle));
+    if (new_particles == NULL) {
+        fprintf(stderr, "Error al asignar memoria\n");
+        exit(1);
+    }
+
+    particles = new_particles;
+
+    for (int i = num_particles; i < num_particles + n; i++) {
+        Vector2 pos = { (x + i - num_particles) * 1 / zoom - offset.x / zoom , (y + i - num_particles) * 1 / zoom - offset.y / zoom };
+        Vector2 vel = { 0, 0 };
+        Particle particle = { pos, vel, mass, 1.0f };
+        particles[i] = particle;
+    }
+
+    num_particles += n;
+}
+
+void add_particle(Vector2 pos, Vector2 vel, float zoom, Vector2 offset) {
+    add_particles(1, pos.x, pos.y, 10.0f, zoom, offset);
+    vel = mult(vel, 5);
+    particles[num_particles - 1].vel = vel;
 }
 
 void update_particles(float dt) {
@@ -176,10 +187,6 @@ void collision(Particle* p, QuadTree* tree) {
 
 Vector2 gravity_acc(Vector2 a, Vector2 b, float m) {
     float dist = distance(b, a);
-    if (dist <= 4 * R * R) {
-        Vector2 v = { 0, 0 };
-        return v;
-    }
     return mult(sub(b, a), G * m / (dist * sqrt(dist)));
 }
 
@@ -187,7 +194,7 @@ void gravitate(Particle* p, QuadTree* tree) {
     if (tree->leaf) {
         if (tree->particle == NULL || tree->particle == p) return;
 
-        Vector2 acc = gravity_acc(p->pos, tree->particle->pos, M);
+        Vector2 acc = gravity_acc(p->pos, tree->particle->pos, tree->particle->mass);
         p->vel.x += acc.x;
         p->vel.y += acc.y;
         return;
@@ -229,7 +236,7 @@ void _gravity() {
             if (i == j) continue;
             Particle* b = &particles[j];
 
-            Vector2 acc = gravity_acc(a->pos, b->pos, M);
+            Vector2 acc = gravity_acc(a->pos, b->pos, b->mass);
 
             a->vel.x += acc.x;
             a->vel.y += acc.y;
@@ -359,6 +366,8 @@ int main() {
                 else if (event.wheel.y < 0) {
                     zoom /= 1.1f;
                 }
+                offset.x = WINDOW_WIDTH / 2 - WINDOW_WIDTH / 2 * zoom;
+                offset.y = WINDOW_WIDTH / 2 - WINDOW_WIDTH / 2 * zoom;
                 break;
             case SDL_MOUSEBUTTONDOWN:
                 if (event.button.button == SDL_BUTTON_RIGHT) {
@@ -369,7 +378,7 @@ int main() {
                     right_click = true;
                 }
                 else {
-                    add_particles(10, event.button.x, event.button.y, zoom, offset);
+                    add_particles(10, event.button.x, event.button.y, 10.0f, zoom, offset);
                 }
                 break;
             case SDL_MOUSEBUTTONUP:

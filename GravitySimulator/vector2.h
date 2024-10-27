@@ -16,4 +16,6 @@ Vector2 mult(Vector2 a, float scalar);
 
 void normalize(Vector2* v);
 
+void print_vector(Vector2* v);
+
 #endif
