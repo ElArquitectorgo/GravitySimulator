@@ -7,6 +7,7 @@ typedef struct {
     Vector2 pos;
     Vector2 vel;
     float mass;
+    float radius;
     float heat;
 } Particle;
 

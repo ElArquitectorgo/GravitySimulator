@@ -36,6 +36,11 @@ void normalize(Vector2* v) {
     v->y *= scalar;
 }
 
+Vector2 copy(Vector2 v) {
+    Vector2 r = { v.x, v.y };
+    return r;
+}
+
 void print_vector(Vector2* v) {
     printf("%f, %f\n", v->x, v->y);
 }

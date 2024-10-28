@@ -31,21 +31,11 @@ QuadTree root;
 enum Shape shape = Solar;
 
 void render_particles(SDL_Renderer* renderer, float zoom, Vector2 offset) {
-    // In the case where we want to see a relation between size and mass, we
-    // use natural logarithm to prevent huge bodies.
-    bool solar = false;
-    switch (shape) {
-    case Solar:
-        solar = true;
-        break;
-    }
     for (int i = 0; i < num_particles; i++) {
-        float r = R * zoom;
-        if (solar) r *= log(particles[i].mass + 1); // "Normalizes"
-        SDL_Rect rect = { (int)particles[i].pos.x * zoom + offset.x, (int)particles[i].pos.y * zoom + offset.y, r, r };
+        SDL_Rect rect = { (int)particles[i].pos.x * zoom + offset.x, (int)particles[i].pos.y * zoom + offset.y, particles[i].radius * zoom, particles[i].radius * zoom };
 
-        //SDL_SetRenderDrawColor(renderer, particles[i].heat * 5, (1 - particles[i].heat) * 5, 0xff, 255);
-        SDL_SetRenderDrawColor(renderer, 255, 186, 3, 255);
+        SDL_SetRenderDrawColor(renderer, particles[i].heat * 5, (1 - particles[i].heat) * 5, 0xff, 255);
+        //SDL_SetRenderDrawColor(renderer, 255, 186, 3, 255);
         SDL_RenderFillRect(renderer, &rect);
     }
 }
@@ -85,6 +75,7 @@ void init_particles(enum Shape shape) {
         Vector2 pos = { 0, 0 };
         Vector2 vel = { 0, 0 };
         float mass = 1.0f;
+        float radius = 5.0f;
         switch (shape) {
         case Spiral:
             pos.x = WINDOW_WIDTH / 2 + 2 * cos(i) * exp(0.3 * i / 10);
@@ -109,13 +100,16 @@ void init_particles(enum Shape shape) {
             pos.y = WINDOW_HEIGHT / 2;
             vel.x = -5;
             vel.y = 200;
-            if (i == 0) vel.y = 0;
+            if (i == 0) { vel.x = 0; vel.y = 0; }
             mass = 100.0f / (i + 1);
             if (i == 0) mass = 10000.0;
+            // In the case where we want to see a relation between size and mass, we
+            // use natural logarithm to prevent huge bodies.
+            radius *= (int)log(mass + 1);
             break;
         }
 
-        Particle particle = { pos, vel, mass, 1.0f };
+        Particle particle = { pos, vel, mass, radius, 1.0f };
         particles[i] = particle;
     }
 }
@@ -132,7 +126,7 @@ void add_particles(int n, int x, int y, float mass, float zoom, Vector2 offset) 
     for (int i = num_particles; i < num_particles + n; i++) {
         Vector2 pos = { (x + i - num_particles) * 1 / zoom - offset.x / zoom , (y + i - num_particles) * 1 / zoom - offset.y / zoom };
         Vector2 vel = { 0, 0 };
-        Particle particle = { pos, vel, mass, 1.0f };
+        Particle particle = { pos, vel, mass, R, 1.0f };
         particles[i] = particle;
     }
 
@@ -153,38 +147,53 @@ void update_particles(float dt) {
     }
 }
 
+Vector2 get_center(Particle* p) {
+    // Because we are using squares
+    Vector2 p_center = { p->pos.x + p->radius / 2, p->pos.y + p->radius / 2 };
+    return p_center;
+}
+
 void collide(Particle* a, Particle* b, float dist) {
-    if (dist > 2 * R) return;
+    if (dist > a->radius / 2 + b->radius / 2) return;
 
-    Vector2 d_pos = sub(a->pos, b->pos);
-    normalize(&d_pos);
-
-    Vector2 mtd = mult(d_pos, R - dist / 2);
+    Vector2 d_pos = sub(get_center(&b->pos), get_center(&a->pos));
+    float overlap = dist - (a->radius / 2 + b->radius / 2);
+    Vector2 dir = copy(d_pos);
+    normalize(&dir);
+    Vector2 mtd = mult(dir, overlap * 0.5);
     add(&a->pos, &mtd);
+    subs(&b->pos, &mtd);
 
-    float impact_speed = dot(sub(a->vel, b->vel), d_pos);
+    // https://en.wikipedia.org/wiki/Elastic_collision
+    dist = a->radius / 2 + b->radius / 2;
+    normalize(&d_pos);
+    mult(d_pos, dist);
+
+    float impact_speed = dot(sub(b->vel, a->vel), d_pos);
     a->heat += abs(impact_speed) * 0.1;
 
-    if (impact_speed > 0) return;
-
-    Vector2 force = mult(d_pos, impact_speed * (1.0f + RESTITUTION) * 0.5);   
-    
-    subs(&a->vel, &force);
-    add(&b->vel, &force);
+    float s1 = 2 * b->mass / (a->mass + b->mass);
+    float s2 = -2 * a->mass / (a->mass + b->mass);
+    Vector2 numerator = mult(d_pos, impact_speed);
+    Vector2 n_v = mult(numerator, 1 / (dist * dist));
+    Vector2 new_v1 = mult(n_v, s1);
+    Vector2 new_v2 = mult(n_v, s2);
+    add(&a->vel, &new_v1);
+    add(&b->vel, &new_v2);
 }
 
 void collision(Particle* p, QuadTree* tree) {
     if (tree->leaf) {
         if (tree->particle == NULL || tree->particle == p) return;
 
-        float dist = distance(p->pos, tree->particle->pos);
+        float dist = distance(get_center(p), get_center(tree->particle));
         collide(p, tree->particle, dist);
         return;
     }
 
     for (int i = 0; i < 4; i++) {
-        bool outside = p->pos.x + 2 * R < tree->children[i].x || p->pos.x - 2 * R > tree->children[i].x + tree->children[i].w
-            || p->pos.y + 2 * R < tree->children[i].y || p->pos.y - 2 * R > tree->children[i].y + tree->children[i].w;
+        bool outside = p->pos.x + 2 * p->radius < tree->children[i].x || p->pos.x - 2 * p->radius > tree->children[i].x + tree->children[i].w
+            || p->pos.y + 2 * p->radius < tree->children[i].y || p->pos.y - 2 * p->radius > tree->children[i].y + tree->children[i].w;
         if (!outside) {
             collision(p, &tree->children[i]);
         }
@@ -410,7 +419,7 @@ int main() {
         update_particles(dt);
         construct_tree();
         gravity();
-        //collide_particles();
+        collide_particles();
         render_particles(renderer, zoom, offset);
 
         if (right_click) {

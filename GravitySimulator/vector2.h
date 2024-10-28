@@ -73,6 +73,15 @@ Vector2 mult(Vector2 a, float scalar);
 void normalize(Vector2* v);
 
 /**
+ * Copy input vector.
+ *
+ * \param v vector to copy
+ * \returns A new vector with the same components.
+ *
+ */
+Vector2 copy(Vector2 v);
+
+/**
  * Prints vector components.
  * 
  */
