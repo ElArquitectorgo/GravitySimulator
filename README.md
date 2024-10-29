@@ -18,8 +18,8 @@ https://www.youtube.com/watch?v=tOlKLJ4WmSE
 
 # Video examples
 
-Sphere - 2000 particles, no collisions
+**Sphere - 2000 particles, no collisions**
 
-Random - 2000 particles, no collisions
+**Random - 2000 particles, no collisions**
 
-Spiral - 200 particles, no collisions
+**Spiral - 200 particles, no collisions**

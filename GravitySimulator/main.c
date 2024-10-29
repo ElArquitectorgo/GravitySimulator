@@ -16,6 +16,7 @@
 // See https://github.com/womogenes/GravitySim
 
 // Be careful if you increase by a lot num_particles with Spiral or Solar shapes.
+// If you use Solar shape make sure to change G constant to something like 0.0001
 
 enum Shape {
     Spiral,
@@ -28,14 +29,15 @@ Particle* particles = NULL;
 int num_particles = 2000;
 
 QuadTree root;
-enum Shape shape = Random;
+enum Shape shape = Sphere;
 
 void render_particles(SDL_Renderer* renderer, float zoom, Vector2 offset) {
     for (int i = 0; i < num_particles; i++) {
         SDL_Rect rect = { (int)particles[i].pos.x * zoom + offset.x, (int)particles[i].pos.y * zoom + offset.y, particles[i].radius * zoom, particles[i].radius * zoom };
 
         //SDL_SetRenderDrawColor(renderer, particles[i].heat * 5, (1 - particles[i].heat) * 5, 0xff, 255);
-        SDL_SetRenderDrawColor(renderer, 255, 186, 3, 255);
+        float g_channel = (abs(particles[i].vel.x) + abs(particles[i].vel.y)) / 150;
+        SDL_SetRenderDrawColor(renderer, 255, 186 / (g_channel + 1), 3, 255);
         SDL_RenderFillRect(renderer, &rect);
     }
 }
@@ -159,7 +161,7 @@ void collide(Particle* a, Particle* b, float dist) {
     Vector2 d_pos = sub(get_center(&b->pos), get_center(&a->pos));
     normalize(&d_pos);
     float overlap = dist - (a->radius / 2 + b->radius / 2);
-    Vector2 mtd = mult(d_pos, overlap * 0.5);
+    Vector2 mtd = mult(d_pos, overlap * 2);
     add(&a->pos, &mtd);
     subs(&b->pos, &mtd);
 
@@ -431,6 +433,7 @@ int main() {
         //RENDER LOOP END
         SDL_SetRenderDrawColor(renderer, 20, 20, 20, 255);
         SDL_RenderPresent(renderer);
+        //SDL_Delay(1000);
     }
 
     SDL_DestroyRenderer(renderer);
