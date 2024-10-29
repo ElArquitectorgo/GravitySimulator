@@ -4,7 +4,7 @@
 #define WINDOW_WIDTH 800
 #define WINDOW_HEIGHT 800
 
-#define G 0.0001f
+#define G 0.1f
 #define M 1
 #define R 5
 #define RESTITUTION 0.2f

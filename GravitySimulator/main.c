@@ -25,17 +25,17 @@ enum Shape {
 };
 
 Particle* particles = NULL;
-int num_particles = 8;
+int num_particles = 2000;
 
 QuadTree root;
-enum Shape shape = Solar;
+enum Shape shape = Random;
 
 void render_particles(SDL_Renderer* renderer, float zoom, Vector2 offset) {
     for (int i = 0; i < num_particles; i++) {
         SDL_Rect rect = { (int)particles[i].pos.x * zoom + offset.x, (int)particles[i].pos.y * zoom + offset.y, particles[i].radius * zoom, particles[i].radius * zoom };
 
-        SDL_SetRenderDrawColor(renderer, particles[i].heat * 5, (1 - particles[i].heat) * 5, 0xff, 255);
-        //SDL_SetRenderDrawColor(renderer, 255, 186, 3, 255);
+        //SDL_SetRenderDrawColor(renderer, particles[i].heat * 5, (1 - particles[i].heat) * 5, 0xff, 255);
+        SDL_SetRenderDrawColor(renderer, 255, 186, 3, 255);
         SDL_RenderFillRect(renderer, &rect);
     }
 }
@@ -134,7 +134,7 @@ void add_particles(int n, int x, int y, float mass, float zoom, Vector2 offset) 
 }
 
 void add_particle(Vector2 pos, Vector2 vel, float zoom, Vector2 offset) {
-    add_particles(1, pos.x, pos.y, 10.0f, zoom, offset);
+    add_particles(1, pos.x, pos.y, 1.0f, zoom, offset);
     vel = mult(vel, 5);
     particles[num_particles - 1].vel = vel;
 }
@@ -169,6 +169,7 @@ void collide(Particle* a, Particle* b, float dist) {
 
     float impact_speed = dot(sub(b->vel, a->vel), d_pos);
     a->heat += abs(impact_speed) * 0.1;
+    if (impact_speed > 0) return;
 
     float s1 = 2 * b->mass / (a->mass + b->mass);
     float s2 = -2 * a->mass / (a->mass + b->mass);
@@ -386,7 +387,7 @@ int main() {
                     right_click = true;
                 }
                 else {
-                    add_particles(10, event.button.x, event.button.y, 10.0f, zoom, offset);
+                    add_particles(10, event.button.x, event.button.y, 1.0f, zoom, offset);
                 }
                 break;
             case SDL_MOUSEBUTTONUP:
@@ -416,7 +417,7 @@ int main() {
         update_particles(dt);
         construct_tree();
         gravity();
-        collide_particles();
+        //collide_particles();
         render_particles(renderer, zoom, offset);
 
         if (right_click) {
