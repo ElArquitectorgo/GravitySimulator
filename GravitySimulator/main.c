@@ -157,16 +157,14 @@ void collide(Particle* a, Particle* b, float dist) {
     if (dist > a->radius / 2 + b->radius / 2) return;
 
     Vector2 d_pos = sub(get_center(&b->pos), get_center(&a->pos));
+    normalize(&d_pos);
     float overlap = dist - (a->radius / 2 + b->radius / 2);
-    Vector2 dir = copy(d_pos);
-    normalize(&dir);
-    Vector2 mtd = mult(dir, overlap * 0.5);
+    Vector2 mtd = mult(d_pos, overlap * 0.5);
     add(&a->pos, &mtd);
     subs(&b->pos, &mtd);
 
     // https://en.wikipedia.org/wiki/Elastic_collision
     dist = a->radius / 2 + b->radius / 2;
-    normalize(&d_pos);
     mult(d_pos, dist);
 
     float impact_speed = dot(sub(b->vel, a->vel), d_pos);
@@ -174,8 +172,7 @@ void collide(Particle* a, Particle* b, float dist) {
 
     float s1 = 2 * b->mass / (a->mass + b->mass);
     float s2 = -2 * a->mass / (a->mass + b->mass);
-    Vector2 numerator = mult(d_pos, impact_speed);
-    Vector2 n_v = mult(numerator, 1 / (dist * dist));
+    Vector2 n_v = mult(d_pos, impact_speed / (dist * dist));
     Vector2 new_v1 = mult(n_v, s1);
     Vector2 new_v2 = mult(n_v, s2);
     add(&a->vel, &new_v1);
@@ -197,6 +194,13 @@ void collision(Particle* p, QuadTree* tree) {
         if (!outside) {
             collision(p, &tree->children[i]);
         }
+    }
+}
+
+void collide_particles() {
+    for (int i = 0; i < num_particles; i++) {
+        Particle* a = &particles[i];
+        collision(a, &root);
     }
 }
 
@@ -252,13 +256,6 @@ void _gravity() {
             Vector2 acc = gravity_acc(a->pos, b->pos, b->mass);
             add(&a->vel, &acc);
         }
-    }
-}
-
-void collide_particles() {
-    for (int i = 0; i < num_particles; i++) {
-        Particle* a = &particles[i];
-        collision(a, &root);
     }
 }
 
